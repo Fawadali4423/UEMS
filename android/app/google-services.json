@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "896208413196",
+    "project_id": "uems-de31f",
+    "storage_bucket": "uems-de31f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:896208413196:android:25b999b06bb4b3c521c429",
+        "android_client_info": {
+          "package_name": "com.example.uems"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmfSAopVnQpwqS6yrBfNWTzczJPsWPdAM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

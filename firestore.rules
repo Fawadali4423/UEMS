@@ -1,0 +1,70 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Allow all authenticated users to read/write their own data
+    // This is a simplified version for testing
+    // TODO: Add proper role-based access control in production
+    
+    match /users/{userId} {
+      allow read: if true; // Public read for lookups
+      allow write: if request.auth != null; // Any authenticated user can update
+    }
+    
+    // Events - authenticated users can read/write
+    match /events/{eventId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Proposals - authenticated users can create and read
+    match /proposals/{proposalId} {
+      allow read, write: if request.auth != null;
+      
+      // Suggestions subcollection
+      match /suggestions/{suggestionId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // Votes - authenticated users can vote
+    match /votes/{voteId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Registrations - authenticated users can read/write
+    match /registrations/{registrationId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Passes - authenticated users can read/write
+    match /passes/{passId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Attendance - authenticated users can read/write
+    match /attendance/{attendanceId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Certificates - authenticated users can read/write
+    match /certificates/{certificateId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Notifications - authenticated users can read/write
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Payments - authenticated users can read/write
+    match /event_payments/{paymentId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Event Certificates - authenticated users can read/write
+    match /event_certificates/{certificateId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
