@@ -160,18 +160,25 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           // Event Image/Header
                           Container(
                             width: double.infinity,
-                            height: 250, // Increased height for better visibility
+                            height: 250,
                             decoration: BoxDecoration(
-                              gradient: event.posterBase64 == null ? AppTheme.primaryGradient : null,
+                              gradient: (event.posterUrl == null && event.posterBase64 == null) 
+                                  ? AppTheme.primaryGradient 
+                                  : null,
                               borderRadius: BorderRadius.circular(20),
-                              image: event.posterBase64 != null
+                              image: event.posterUrl != null
                                   ? DecorationImage(
-                                      image: MemoryImage(
-                                        base64Decode(event.posterBase64!),
-                                      ),
+                                      image: NetworkImage(event.posterUrl!),
                                       fit: BoxFit.cover,
                                     )
-                                  : null,
+                                  : (event.posterBase64 != null
+                                      ? DecorationImage(
+                                          image: MemoryImage(
+                                            base64Decode(event.posterBase64!),
+                                          ),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.1),
@@ -180,7 +187,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 ),
                               ],
                             ),
-                            child: event.posterBase64 == null
+                            child: (event.posterUrl == null && event.posterBase64 == null)
                                 ? const Icon(
                                     Icons.event_rounded,
                                     size: 60,

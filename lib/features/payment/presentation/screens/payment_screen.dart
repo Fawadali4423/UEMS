@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -55,21 +56,44 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
+  Future<String?> _uploadImage(File image) async {
+    try {
+      final String fileName = 'proof_${DateTime.now().millisecondsSinceEpoch}_${widget.studentId}.jpg';
+      final Reference ref = FirebaseStorage.instance.ref().child('payment_proofs/$fileName');
+      
+      final UploadTask uploadTask = ref.putFile(image);
+      final TaskSnapshot snapshot = await uploadTask;
+      
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      debugPrint('Error uploading image: $e');
+      return null;
+    }
+  }
+
   Future<void> _handlePayment() async {
     if (!_formKey.currentState!.validate()) return;
     
-    // In a real app, you would upload the image to storage here and get a URL.
-    // For this mock/demo, we'll just skip the upload or simulate it.
+    setState(() => _isUploading = true);
+    
+    String? screenshotUrl;
+    if (_selectedImage != null) {
+      // Upload image to Firebase Storage
+      screenshotUrl = await _uploadImage(_selectedImage!);
+      
+      if (screenshotUrl == null) {
+        if (mounted) {
+           setState(() => _isUploading = false);
+           _showErrorSnackbar('Failed to upload proof. Please try again.');
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
     
     final paymentProvider = Provider.of<PaymentProvider>(context, listen: false);
     
-    // Simulate image upload if image selected
-    String? screenshotUrl;
-    if (_selectedImage != null) {
-      // Mock URL
-      screenshotUrl = 'file://${_selectedImage!.path}'; 
-    }
-
     final result = await paymentProvider.submitManualPayment(
       eventId: widget.eventId,
       studentId: widget.studentId,
@@ -77,6 +101,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
       transactionId: _transactionIdController.text.trim(),
       screenshotUrl: screenshotUrl,
     );
+    
+    if (mounted) {
+      setState(() => _isUploading = false);
+    }
 
     if (result != null && result.success) {
       if (mounted) {

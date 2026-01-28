@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uems/app/routes.dart';
@@ -29,7 +31,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      Provider.of<EventProvider>(context, listen: false).loadApprovedEvents();
+      Provider.of<EventProvider>(context, listen: false).startRealtimeEvents();
       Provider.of<RegistrationProvider>(context, listen: false)
           .loadStudentRegistrations(authProvider.currentUser?.uid ?? '');
     });
@@ -64,9 +66,17 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildHomeTab(bool isDark, String userName) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Column(
+    return RefreshIndicator(
+      onRefresh: () async {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        Provider.of<EventProvider>(context, listen: false).startRealtimeEvents();
+        Provider.of<RegistrationProvider>(context, listen: false)
+            .loadStudentRegistrations(authProvider.currentUser?.uid ?? '');
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DashboardHeader(
@@ -354,6 +364,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -393,13 +404,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   Widget _buildEventCard(dynamic event, bool isDark) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final regProvider = Provider.of<RegistrationProvider>(context, listen: false);
-    final isRegistered = regProvider.isRegisteredForEvent(event.id);
+    // Dynamic typing is risky but kept for compatibility. Casting to EventModel is better.
+    // Assuming event is EventModel or has similar fields.
     
     return GlassmorphismCard(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16), // Increased margin
+      padding: const EdgeInsets.all(0), // Padding inside card handled by children
       onTap: () => Navigator.pushNamed(
         context,
         AppRoutes.eventDetail,
@@ -407,141 +417,193 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ),
       child: Column(
         children: [
-          Row(
+          // 1. Image & Date Overlay
+          Stack(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                height: 150,
+                width: double.infinity,
                 decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)), // Top corners only
+                  color: isDark ? Colors.grey[800] : Colors.grey[200],
+                  image: event.posterUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(event.posterUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : (event.posterBase64 != null
+                          ? DecorationImage(
+                              image: MemoryImage(base64Decode(event.posterBase64!)),
+                              fit: BoxFit.cover,
+                            )
+                          : null),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${event.date.day}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                child: (event.posterUrl == null && event.posterBase64 == null)
+                    ? Center(
+                        child: Icon(
+                          Icons.event_rounded,
+                          size: 48,
+                          color: isDark ? Colors.grey[700] : Colors.grey[400],
+                        ),
+                      )
+                    : null,
+              ),
+              // Date Badge on Top Left
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9), // Always white for contrast
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
-                    Text(
-                      _getMonthAbbr(event.date.month),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white,
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '${event.date.day}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                          height: 1.0,
+                        ),
                       ),
-                    ),
-                  ],
+                      Text(
+                        _getMonthAbbr(event.date.month),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            event.title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : Colors.grey[900],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        // Paid/Free badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: event.isPaid
-                                ? AppTheme.primaryColor.withValues(alpha: 0.15)
-                                : AppTheme.successColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            event.isPaid ? 'PKR ${event.entryFee?.toStringAsFixed(0) ?? '0'}' : 'Free',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: event.isPaid ? AppTheme.primaryColor : AppTheme.successColor,
-                            ),
-                          ),
-                        ),
-                      ],
+              // Price Badge on Top Right
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: event.isPaid ? AppTheme.primaryColor : AppTheme.successColor,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    event.isPaid ? 'PKR ${event.entryFee?.toStringAsFixed(0)}' : 'Free',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          size: 14,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            event.venue,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        // Participant count
-                        Icon(
-                          Icons.people_outline,
-                          size: 14,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${event.participantCount ?? 0}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          // Participate Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: isRegistered
-                  ? () => _showQRPass(event, authProvider.currentUser)
-                  : () => _handleParticipate(event),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isRegistered 
-                    ? AppTheme.successColor 
-                    : AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          
+          // 2. Details Section
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.grey[900],
+                    height: 1.2,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              icon: Icon(
-                isRegistered ? Icons.qr_code_rounded : Icons.how_to_reg_rounded,
-                size: 18,
-              ),
-              label: Text(
-                isRegistered ? 'View QR Pass' : 'Participate',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
+                const SizedBox(height: 8),
+                
+                // Info Row (Time & Venue)
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 16,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      event.startTime,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 16,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        event.venue,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Action Buttons
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.eventDetail,
+                      arguments: event.id,
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(
+                        color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      'View Details',
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.grey[900],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

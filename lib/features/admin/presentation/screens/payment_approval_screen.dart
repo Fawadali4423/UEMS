@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -187,23 +188,36 @@ class _PaymentApprovalScreenState extends State<PaymentApprovalScreen> {
                 height: 100,
                 width: double.infinity,
                 color: Colors.black12,
-                child: Stack(
+                  child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.network(
-                      payment.screenshotUrl!, // Note: This will be a local file path in our mock implementation
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(child: Icon(Icons.broken_image, color: Colors.grey));
-                      },
+                    GestureDetector(
+                      onTap: () => _showProofDialog(context, payment.screenshotUrl!),
+                      child: Hero(
+                        tag: 'proof_${payment.id}',
+                        child: _buildProofImage(payment.screenshotUrl!),
+                      ),
                     ),
                     Positioned(
                        bottom: 4,
                        right: 4,
-                       child: Container(
-                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                         color: Colors.black54,
-                         child: const Text('Proof', style: TextStyle(color: Colors.white, fontSize: 10)),
+                       child: GestureDetector(
+                         onTap: () => _showProofDialog(context, payment.screenshotUrl!),
+                         child: Container(
+                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                           decoration: BoxDecoration(
+                             color: Colors.black54,
+                             borderRadius: BorderRadius.circular(12),
+                           ),
+                           child: Row(
+                             mainAxisSize: MainAxisSize.min,
+                             children: const [
+                               Icon(Icons.fullscreen, color: Colors.white, size: 12),
+                               SizedBox(width: 4),
+                               Text('Tap to View', style: TextStyle(color: Colors.white, fontSize: 10)),
+                             ],
+                           ),
+                         ),
                        ),
                     )
                   ],
@@ -321,6 +335,127 @@ class _PaymentApprovalScreenState extends State<PaymentApprovalScreen> {
             child: const Text('Reject', style: TextStyle(color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProofImage(String url, {BoxFit fit = BoxFit.cover}) {
+    if (url.startsWith('http')) {
+      return Image.network(
+        url,
+        fit: fit,
+        errorBuilder: _buildErrorWidget,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+              color: Colors.white,
+            ),
+          );
+        },
+      );
+    } else if (url.startsWith('file://') || !url.contains('://')) {
+      // Handle file:// URI or raw path
+      final path = url.startsWith('file://') ? url.replaceFirst('file://', '') : url;
+      return Image.file(
+        File(path),
+        fit: fit,
+        errorBuilder: _buildErrorWidget,
+      );
+    }
+    return _buildErrorWidget(context, 'Invalid URL scheme', StackTrace.empty);
+  }
+
+  Widget _buildErrorWidget(BuildContext context, Object error, StackTrace? stackTrace) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      color: Colors.grey[200],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.broken_image, size: 30, color: Colors.grey[500]),
+          const SizedBox(height: 8),
+          const Text(
+            'Image Error',
+            style: TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            error.toString().replaceAll('Exception:', ''),
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showProofDialog(BuildContext context, String imageUrl) {
+    return showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                color: Colors.black87,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+            
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Center(
+                child: Hero(
+                  tag: 'proof_dialog', 
+                  child: _buildProofImage(imageUrl, fit: BoxFit.contain),
+                ),
+              ),
+            ),
+
+            Positioned(
+              top: 40,
+              right: 20,
+              child: SafeArea(
+                child: Material(
+                  color: Colors.transparent,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ),
+            ),
+             Positioned(
+              bottom: 40,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Pinch to zoom',
+                  style: TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -15,6 +15,7 @@ class EventModel {
   final String eventType; // 'free' or 'paid'
   final double? entryFee; // Entry fee in PKR (null for free events)
   final String? posterBase64;
+  final String? posterUrl; // New field for Cloud Storage URL
   final String? certificateTemplateBase64;
   final Map<String, dynamic>? templateConfig;
   final int participantCount;
@@ -35,6 +36,7 @@ class EventModel {
     this.eventType = 'free',
     this.entryFee,
     this.posterBase64,
+    this.posterUrl,
     this.certificateTemplateBase64,
     this.templateConfig,
     this.participantCount = 0,
@@ -59,6 +61,7 @@ class EventModel {
       eventType: data['eventType'] ?? 'free',
       entryFee: (data['entryFee'] as num?)?.toDouble(),
       posterBase64: data['posterBase64'],
+      posterUrl: data['posterUrl'],
       certificateTemplateBase64: data['certificateTemplateBase64'],
       templateConfig: data['templateConfig'],
       participantCount: data['participantCount'] ?? 0,
@@ -83,6 +86,7 @@ class EventModel {
       eventType: json['event_type'] ?? 'free',
       entryFee: (json['entry_fee'] as num?)?.toDouble(),
       posterBase64: json['poster_base64'],
+      posterUrl: json['poster_url'],
       certificateTemplateBase64: json['certificate_template_base64'],
       templateConfig: json['template_config'],
       participantCount: json['participant_count'] ?? 0,
@@ -106,6 +110,7 @@ class EventModel {
       'eventType': eventType,
       'entryFee': entryFee,
       'posterBase64': posterBase64,
+      'posterUrl': posterUrl,
       'certificateTemplateBase64': certificateTemplateBase64,
       'templateConfig': templateConfig,
       'participantCount': participantCount,
